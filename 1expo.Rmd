@@ -1,0 +1,129 @@
+---
+title: "1 Exponential kernel"
+author: "mame diarra toure"
+date: "25 juillet 2019"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+N=1000
+dt=0.001
+v0=0.02
+M=1
+t=N*dt
+
+lambda=4
+theta=8
+```
+
+
+```{r}
+eps=rnorm(N+1)
+Y0=rep(0,M)
+
+Y=matrix(0,nrow=N,ncol=M)
+xi=c()
+
+for (i in 1:M){
+  xi[i]=3**i
+}
+c=0.5/M
+for (k in 2:N){
+  for(i in 1:M){
+    Y[k,i]=(1/(1+xi[i]*dt))*((Y[k-1,i]+lambda*(theta-sum(c*Y[k-1,])-v0)*dt)+
+      (sqrt(max((v0+sum(c*Y[k-1,]))*dt,0)))*eps[k+1])
+  }
+}
+#simulation de V=v0+somme(Y)
+V=c()
+for (k in 1:N) {
+  V[k]=v0+sum(c*Y[k,])
+}
+#Tracé de V en fonction de t 
+X=seq(0,t,length.out = N)
+
+plot(X,V,type='l',col='red',main='methode hybride pour somme expo')
+```
+###writting the process as a diffusion
+```{r}
+a=0
+for(k in 2:N+1){
+  a=a+((V[k-1]-v0)*(theta-V[k-1]))/V[k-1]
+}
+b=0
+for (k in 2:N) {
+  b=b+((V[k-1]-v0)*(V[k]-V[k-1]))/V[k-1]
+}
+c1=0
+for (k in 2:N){
+  c1=c1+((V[k-1]-v0)**2/V[k-1])
+}
+num=c*((lambda*dt*a))-b
+den=dt*c1
+x_mv=num/den
+print(paste("the real value of x is ",xi))
+print(paste("x_mv=",x_mv))
+g=0
+h=0
+for (k in 2:N){
+  a=((xi*dt*(V[k-1]-v0)+(V[k]-V[k-1])))
+  b=(theta-V[k-1])
+  e=1/V[k-1]
+  g=g+(e*b*a)
+  h=h+(e*a*a)
+}
+
+l=-lambda*g
+p=sqrt(l**2+4*N*(1/dt)*h)
+c_mv=(l+p)/(2*N)
+print(paste("the real value of c is ",c))
+print(paste("c_mv=",c_mv))
+
+```
+###using the explicit formula of V
+```{r}
+#estimation de c (formule explicite)
+e=0
+f=0
+
+for(k in 2:N){
+  a=0
+  b=0
+  for(j in 1:(k-1)){
+    a=a+((exp(-xi[1]*dt*(k-j)))*lambda*dt*(theta-V[j]))
+    b=b+((exp(-xi[1]*dt*(k-j)))*sqrt(dt*V[j]))**2
+
+  }
+   e=e+(((V[k]-v0)*a)/(b))
+    f=f+((V[k]-v0)**2)/b
+}
+delta=(e**2)+4*N*f
+c_mv=(-e+ sqrt(delta))/(2*N)
+print(paste("the real value of c is ",c))
+print(paste("c_mv=",c_mv))
+
+#estimation de x en utilisant optimize
+lv111=function(x){
+  l=0
+  for (k in 2:N){
+    a=0
+    b=0
+    for(j in 1:(k-1)){
+      a=a+((exp(-x*dt*(k-j)))*lambda*dt*(theta-V[j]))
+      b=b+((exp(-x*dt*(k-j)))*sqrt(dt*V[j]))**2
+    }
+    l=l+(-0.5*log(2*pi*b)-log(c)-((1/c)*(V[k]-v0)-a)**2*(0.5/b))
+  }
+  return(l)
+}
+x_mv=optimise(lv111,lower =2.5,upper = 3.50,maximum = TRUE)
+x=x_mv$maximum
+print(paste("the real value of x is ",xi))
+print(paste("x_optimize=",x))
+  
+```
+
+

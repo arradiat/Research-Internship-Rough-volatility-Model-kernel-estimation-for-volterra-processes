@@ -1,0 +1,306 @@
+---
+title: "CIR"
+author: "mame diarra toure"
+date: "19 juillet 2019"
+output: html_document
+---
+###simulation cas 1 sans racine de V
+```{r}
+N=10000
+sigma=0.2
+eps=rnorm(N+1)
+dt=0.001
+t=dt*N
+v0=0.02
+lambda=3
+theta=2
+
+V=c()
+V[1]=v0
+for (i in 1:N){
+  V[i+1]=V[i]+(lambda*(theta-V[i])*dt)+(sqrt(dt)*sigma*eps[i])
+}
+t=seq(0,t,length.out = N+1)
+plot(t,V,type='l',col='purple', main='simulation of volatility ')
+legend("topright",legend=c("Volatily"),col=c("purple"), lty=1:2, cex=0.8)
+```
+###estimation
+##method1 MLE
+```{r,echo=FALSE}
+print(paste("the real value of the parameters are=",lambda,"theta=",theta,"sigma=",sigma))
+#lambda
+a=0
+c=0
+for (k in 1:N){
+  a=a+((theta-V[k])*(V[k+1]-V[k]))
+  c=c+(((theta-V[k])**2))
+}
+ lam_mv=a/(c*(dt))
+print(paste("lambda mv =",lam_mv))
+#theta
+d=V[1]
+f=0
+for (k in 2:N+1){
+  d=d+(V[k])
+  f=f+(V[k-1])
+}
+
+num=f*(lambda*dt-1)+d
+den=N*dt*lambda
+theta_mv=num/den
+print(paste("theta mv=",theta_mv))
+
+#sigma
+l=0
+for (k in 2:N+1){
+  l=l+(V[k]-(V[k-1]+lambda*(theta-V[k-1])*dt))**2
+  
+}
+sig=sqrt((l/(N*dt)))
+
+print(paste("sigma_mv=",sig))
+```
+##method 2 linear regression
+```{r,echo=FALSE}
+N=100000
+sigma=0.0001
+eps=rnorm(N+1)
+dt=0.0001
+t=dt*N
+v0=0.0
+lambda=1.2
+theta=1
+V=c()
+V[1]=v0
+for (i in 1:N){
+  V[i+1]=V[i]+(lambda*(theta-V[i])*dt)+(sqrt(dt)*sigma*eps[i])
+}
+dV=c()
+dV[1]=V[1]-v0
+
+
+for (k in 2:N+1){
+  dV[k]=abs(V[k]-V[k-1])
+}
+plot(V,dV,type='l')
+
+```
+
+```{r,echo=FALSE}
+lm=lm(dV ~ V)
+coeff=unname(lm$coefficients)
+lambda_theta=(coeff[1])/dt
+lambda_estim=-(coeff[2])/dt
+theta_estim<-lambda_theta/lambda_estim
+print(paste("the real value of the parameters are= lambda", lambda,"theta=",theta))
+print(paste("lambda estimated by  linear regression =",lambda_estim))
+
+print(paste("theta estimated by linear regression =",theta_estim))
+
+```
+###case with square V
+##simulation
+```{r}
+N=100000
+sigma=0.1
+eps=rnorm(N+1)
+dt=0.0001
+t=dt*N
+v0=0.02
+lambda=1.2
+theta=1
+V=c()
+V[1]=v0
+for (i in 1:N){
+  V[i+1]=V[i]+lambda*(theta-V[i])*dt+(sqrt(max(V[i],0)*dt)*sigma)*eps[i]
+  
+}
+t=seq(0,t,length.out = N+1)
+plot(t,V,type='l',col='pink', main='simulation with the explicit euleur method')
+```
+##estimation
+```{r,echo=FALSE}
+
+#lambda
+ a=0
+  for (k in 2:N+1){
+  a=a+(((theta-V[k-1])*(V[k]-V[k-1]))/V[k-1])
+  }
+
+  c=0
+  for (k in 1:N){
+  c=c+(((theta-V[k])**2)/V[k])
+  }
+  c1=c*dt
+  lambda_mv=(a)/(c1)
+  print(paste("lambda_mv=",lambda_mv))
+#estimation de theta
+d=0
+f=0
+
+
+for (k in 2:N+1){
+  d=d+(V[k]/V[k-1])
+  f=f+(1/V[k-1])
+  
+}
+num=N*(lambda*dt-1)+d
+den=dt*lambda*f
+theta_mv=num/den
+print(paste("theta mv=",theta_mv))
+#estimation de sigma
+l=0
+for (k in 2:N+1){
+  l=l+(((V[k]-(V[k-1]+lambda*(theta-V[k-1])*dt))**2)/V[k-1])
+  
+}
+sig1=sqrt(l/(N*dt))
+print(paste("sigma_mv=",sig1))
+```
+
+##Convergence
+\color{red}\subsection{Test of the convergence of the estimator}
+\color{black}
+So now we're gonna analyse the comportment of our estimators when we increase gradually N 
+We fix dt=0.0001
+```{r,echo=FALSE}
+dt=0.0001
+```
+
+```{r, echo=FALSE}
+conv<-function(X){
+v0=0.02
+lambda=1.2
+theta=1
+N=X
+eps=rnorm(N+1)
+t=dt*N
+V=c()
+V[1]=v0
+sig=0.001
+print(paste("the real parameters lambda=",lambda,"theta=",theta,"sigma=",sig,"dt=", dt, "N=",N))
+#on va utiliser methode explicite pour simuler notre processus
+for (i in 1:N){
+  V[i+1]=V[i]+lambda*(theta-V[i])*dt+(sqrt(max(V[i],0)*dt)*sig)*eps[i+1]
+  
+}
+param=c()
+#estimation de lambda
+  a=0
+  for (k in 2:N+1){
+  a=a+(((theta-V[k-1])*(V[k]-V[k-1]))/V[k-1])
+  }
+
+  c=0
+  for (k in 1:N){
+  c=c+(((theta-V[k])**2)/V[k])
+  }
+  c1=c*dt
+  lambda_mv=(a)/(c1)
+  param[1]=lambda_mv
+  #print(paste("lambda_mv=",lambda_mv))
+  
+#estimation de theta
+d=0
+f=0
+for (k in 2:N+1){
+  d=d+(V[k]/V[k-1])
+  f=f+(1/V[k-1])
+  
+}
+num=N*(lambda*dt-1)+d
+den=dt*lambda*f
+theta_mv=num/den
+param[2]=theta_mv
+#print(paste("theta mv=",theta_mv))
+
+#estimation de sigma
+l=0
+for (k in 2:N+1){
+  l=l+(((V[k]-(V[k-1]+lambda*(theta-V[k-1])*dt))**2)/V[k-1])
+  
+}
+sig1=sqrt(l/(N*dt))
+param[3]=sig1
+#print(paste("sigma_mv=",sig1))
+print(paste("for  N=",N,"we have the following estimations : lambda=", param[1]))
+print(paste("theta=", param[2],"sigma=",sig1))
+}
+
+```
+
+```{r}
+vect_N=seq(100,100000,length.out = 100)
+for(N in 1:100){
+  print(conv(vect_N[N]))
+}
+```
+
+###utilisation de la distribution asymptotique 
+```{r,echo=FALSE}
+dt=0.01
+v0=0.02
+lambda=1.2
+theta=1
+sig=0.1
+N=1000000
+eps=rnorm(N+1)
+t=dt*N
+V=c()
+V[1]=v0
+for (i in 1:N){
+  V[i+1]=V[i]+lambda*(theta-V[i])*dt+(sqrt(max(V[i],0)*dt)*sig)*eps[i+1]
+  
+}
+#grace au calcul en haut on peut estimer theta par la moyenne de V
+theta_g=mean(V)
+
+lam_g<-((sig**2)*theta)/(2*var(V))
+sig1_g<-sqrt((var(V)*2*lambda)/(theta))
+print(paste("the real parameters lambda=",lambda,"theta=",theta,"sigma=",sig))
+print(paste("we have the following estimations : lambda=", lam_g))
+print(paste("theta=",theta_g ,"sigma=",sig1_g))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

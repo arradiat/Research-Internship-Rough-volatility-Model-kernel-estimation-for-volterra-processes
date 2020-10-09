@@ -1,0 +1,103 @@
+---
+title: "3 expos"
+author: "mame diarra toure"
+date: "18 juillet 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+```{r}
+N=1000
+t=dt*N
+dt=0.1
+v0=0.02
+M=3
+
+
+lambda=4
+theta=8
+```
+###simulation
+
+```{r}
+eps=rnorm(N+1)
+Y0=rep(0,M)
+
+Y=matrix(0,nrow=N,ncol=M)
+xi=c()
+c=c()
+
+for (i in 1:M){
+  xi[i]=1.5**(4*i)
+  c[i]=(i**3/(M))
+
+}
+
+for (k in 2:N){
+  for(i in 1:M){
+    Y[k,i]=(1/(1+xi[i]*dt))*((Y[k-1,i]+lambda*(theta-c%*%t(t(Y[k-1,]))-v0)*dt)+
+      (sqrt(max((v0+c%*%t(t(Y[k-1,])))*dt,0)))*eps[k+1])
+  }
+}
+#simulation de V=v0+somme(Y)
+V=c()
+for (k in 1:N) {
+  V[k]=v0+sum(c*Y[k,])
+}
+#Tracé de V en fonction de t 
+X=seq(0,t,length.out = N)
+
+plot(X,V,type='l',col='red',main='methode hybride pour somme expo')
+```
+###logvraisemblance en fonction de c1 c2 e c3 a optimiser 
+```{r}
+lvc=function(x){
+  c1=x[1]
+  c2=x[2]
+  c3=x[3]
+  ak=0
+  bk=0
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt)*c1)/(1+xi[1]*dt)**(k-j))+((sqrt(V[j]*dt)*c2)/(1+xi[2]*dt)**(k-j))+((c3*sqrt(V[j])*dt)/(1+xi[3]*dt)**(k-j)))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+xi[1]*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+xi[2]*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+xi[3]*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(-lv)
+}
+optim(c(0.1,1,5),lv7,method = "L-BFGS-B",lower = c(0.1,0.1,5),upper = c(1,5,19.5))
+c
+```
+###tracé du noyau avec les parametres obtenus avec optim
+```{r}
+K1=function(t){
+  a= c[1]*exp(-xi[1]*t)+c[2]*exp(-xi[2]*t)+c[3]*exp(-xi[3]*t)
+  return (a)
+}
+
+K2=function(t){
+  a= 0.239*exp(-xi[1]*t)+3.8597*exp(-xi[2]*t)+1*exp(-xi[3]*t)
+  return (a)
+}
+t=seq(0,1,length.out = 100)
+plot(t,K1(t), type='l',col='pink')
+lines(t,K2(t),col='purple', type='l')
+legend("topright",legend=c("real kernel","kernel with estimated parameters"),col=c("pink","purple"), lty=1:2, cex=0.8)
+```
+

@@ -1,0 +1,328 @@
+---
+title: "new_method"
+author: "mame diarra toure"
+date: "12 juillet 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+N=1000
+t=dt*N
+dt=0.1
+v0=0.02
+M=2
+lambda=4
+theta=8
+```
+
+```{r}
+eps=rnorm(N+1)
+Y0=rep(0,M)
+
+Y=matrix(0,nrow=N,ncol=M)
+xi=c()
+c=c()
+
+for (i in 1:M){
+  xi[i]=1.5**(4*i)
+  c[i]=(i**2/(2*M))
+
+}
+
+for (k in 2:N){
+  for(i in 1:M){
+    Y[k,i]=(1/(1+xi[i]*dt))*((Y[k-1,i]+lambda*(theta-c%*%t(t(Y[k-1,]))-v0)*dt)+
+      (sqrt(max((v0+c%*%t(t(Y[k-1,])))*dt,0)))*eps[k+1])
+  }
+}
+#simulation de V=v0+somme(Y)
+V=c()
+for (k in 1:N) {
+  V[k]=v0+sum(c*Y[k,])
+}
+#Tracé de V en fonction de t 
+X=seq(0,t,length.out = N)
+
+plot(X,V,type='l',col='red',main='Rough volatility')
+
+```
+###logvraisemblance en fonction de c[1] et c[2] pour tracer avec persp
+```{r}
+lvc1c2=function(c1,c2){
+  ak=0
+  bk=0
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt*c1)/(1+xi[1]*dt)**(k-j)))+((sqrt(V[j]*dt*c2)/(1+xi[2]*dt)**(k-j))))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+xi[1]*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+xi[2]*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(lv)
+}
+c1<-seq(0,8,length.out = 20)
+c2<-seq(0,8,length.out = 20)
+lv<-outer(c1,c2,lvc1c2)  
+persp(c1,c2,lv,theta = 5, phi= 35,col=c("purple","pink"),main="loglikelihood surface")
+```
+
+
+### logvraisemblance en fonction du vecteur c (pour optim)
+```{r}
+lvc=function(x){
+  c1=x[1]
+  c2=x[2]
+  ak=0
+  bk=0
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt*c1)/(1+xi[1]*dt)**(k-j)))+((sqrt(V[j]*dt*c2)/(1+xi[2]*dt)**(k-j))))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+xi[1]*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+xi[2]*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(-lv)
+}
+print(paste("the real value of c1 is",c[1],"and the real value of c2 is",c[2]))
+optim(c(0.1,0.5),lvc,method = "L-BFGS-B",lower = c(0.05,0.1),upper = c(0.4,2))
+```
+
+```{r}
+log_v =function(x1,x2){
+  l=0
+  for (k in 2:N ){
+    ak=0
+    bk=0
+    alpha_k=0
+    beta_k=0
+    for (j in 1:(k-1)){
+      ak=ak+(((c[1]*exp(-x1*dt*(k-j))*sqrt(dt*V1[j])+c[2]*exp(-x1*dt*(k-j))*sqrt(dt*V1[j]))**2)*V1[j])
+      alpha_k=alpha_k+((exp(-x1*dt*(k-j)))*lambda*dt*(theta-V1[j]))
+      beta_k=beta_k+((exp(-x2*dt*(k-j)))*lambda*dt*(theta-V1[j]))
+    }
+ 
+    
+    l=l+(log(ak)+log(2*pi*dt)+(V1[k]-v0-c[1]*alpha_k-c[2]*beta_k)/(dt*ak))
+  }
+  return(l)
+}
+x1<-seq(0,100,length.out = 10)
+x2<-seq(0,100,length.out = 10)
+lv<-outer(x1,x2,log_v)  
+#persp(x1,x2,lv,theta = -360, phi= 35,col=c("cyan","red","cornflowerblue","green","pink"))
+```
+###fonction de log-
+```{r}
+lv2=function(c1,c2){
+  ak=0
+  bk=0
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt*c1)/(1+xi[1]*dt)**(k-j)))+((sqrt(V[j]*dt*c2)/(1+xi[2]*dt)**(k-j))))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+xi[1]*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+xi[2]*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(lv)
+}
+c1<-seq(0,8,length.out = 20)
+c2<-seq(0,8,length.out = 20)
+lv<-outer(c1,c2,lv2)  
+persp(c1,c2,lv,theta = 5, phi= 35,col=c("purple","pink"),main="loglikelihood surface")
+```
+###fonction gradient de la logvraisemblance 
+```{r}
+grad1= function(x){
+  c1=x[1]
+  c2=x[2]
+  x1=xi[1]
+  x2=xi[2]
+  ak=0
+  bk=0
+  ck=0
+  for(k in 2:N){
+    n1=0
+    d1=0
+    n2=0
+    d2=0
+    
+    alpha_k=0
+    beta_k=0
+    for (j in 1:(k-1)){
+      n1=n1+(2*V[j]*((1/(1+x1*dt)**(k-j)))*(c1*((1/(1+x1*dt)**(k-j))))+(c2*((1/(1+x2*dt)**(k-j)))))
+      d1=d1+((c1*((1/(1+x1*dt)**(k-j))*sqrt(V[j])))+(c2*((1/(1+x2*dt)**(k-j))*sqrt(V[j]))))**2
+      alpha_k=alpha_k+(1/(1+x1*dt)**(k-j))*lambda*dt*(theta-V[j])
+      
+      beta_k=beta_k+(1/(1+x2*dt)**(k-j))*lambda*dt*(theta-V[j])
+
+    }
+      ak=ak+(n1/d1)
+      bk=bk+((2*dt*alpha_k*(V[k]-v0-c1*alpha_k-c2*beta_k))*d1)/(dt*d1)**2
+      ck=ck+(dt*n1*(V[k]-v0-c1*alpha_k-c2*beta_k)**2)/(dt*d1)**2
+  }
+  return(0.5*(ak-bk-ck))
+}
+grad2= function(x){
+  c1=x[1]
+  c2=x[2]
+  x1=xi[1]
+  x2=xi[2]
+  ak=0
+  bk=0
+  ck=0
+  for(k in 2:N){
+    n1=0
+    d1=0
+    n2=0
+    d2=0
+    
+    alpha_k=0
+    beta_k=0
+    for (j in 1:(k-1)){
+      n1=n1+(2*V[j]*((1/(1+x2*dt)**(k-j)))*(c1*((1/(1+x1*dt)**(k-j))))+(c2*((1/(1+x2*dt)**(k-j)))))
+      d1=d1+((c1*((1/(1+x1*dt)**(k-j))*sqrt(V[j])))+(c2*((1/(1+x2*dt)**(k-j))*sqrt(V[j]))))**2
+      alpha_k=alpha_k+(1/(1+x1*dt)**(k-j))*lambda*dt*(theta-V[j])
+      
+      beta_k=beta_k+(1/(1+x2*dt)**(k-j))*lambda*dt*(theta-V[j])
+
+    }
+      ak=ak+(n1/d1)
+      bk=bk+((2*dt*beta_k*(V[k]-v0-c1*alpha_k-c2*beta_k))*d1)/(dt*d1)**2
+      ck=ck+(dt*n1*(V[k]-v0-c1*alpha_k-c2*beta_k)**2)/(dt*d1)**2
+  }
+  return(0.5*(ak-bk-ck))
+}
+grad=function(x){
+  return(c(grad1(x),grad2(x)))
+}
+```
+###log vraisemblance en fonction de xi[1] et xi[2] pour tracer avec persp
+```{r}
+lvx1x2=function(x1,x2){
+  ak=0
+  bk=0
+  c1=c[1]
+  c2=c[2]
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt*c1)/(1+x1*dt)**(k-j)))+((sqrt(V[j]*dt*c2)/(1+x2*dt)**(k-j))))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+x1*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+x2*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(lv)
+}
+x1<-seq(0,200,length.out = 20)
+x2<-seq(0,500,length.out = 20)
+lv<-outer(x1,x2,lvx1x2)  
+persp(x1,x2,lv,theta = 90, phi= 35,col=c("cyan","cornflowerblue","purple","pink"), main="loglikelihood surface")
+```
+### log vraisemblance en fonction de xi( pour optim)
+```{r}
+lvx =function(x){
+  x1=x[1]
+  x2=x[2]
+  ak=0
+  bk=0
+  c1=c[1]
+  c2=c[2]
+  for (k in 2:N){
+
+      aj=0
+      bj=0
+      for (j in 1:(k-1)) {
+        aj=aj+(((sqrt(V[j]*dt*c1)/(1+x1*dt)**(k-j)))+((sqrt(V[j]*dt*c2)/(1+x2*dt)**(k-j))))**2
+        bj=bj+((lambda*(theta-V[j])*dt*c1)/(1+x1*dt)**(k-j))+((lambda*(theta-V[j])*dt*c2)/(1+x2*dt)**(k-j))
+        
+      }
+    
+    ak=ak-0.5*log(2*pi*aj)
+    bk=bk+((V[k]-bj)**2)/(2*aj)
+  }
+  lv=ak-bk
+  return(lv)
+}
+optim(c(3,15),lvx,method = "L-BFGS-B",lower = c(4,14),upper = c(7,26))
+```
+###determination manuelle du couple x1 x2 qui donne le maximum de vraisenblance pour tracer le noyau
+```{r}
+n=10
+x1=seq(0.001,200,length.out=n)
+x2=seq(0.001,500,length.out = n)
+l=matrix(nrow=n,ncol=n)
+for(i in 1:n){
+  for (j in 1:n){
+    l[i,j]=lvx1x2(x1[i],x2[j])
+  }
+}
+```
+###on trouve les inddices du max
+```{r}
+which(l==max(l))
+```
+
+
+```{r}
+K3=function(t){
+  a= c[1]*exp(-xi[1]*t)+c[2]*exp(-xi[2]*t)
+  return (a)
+}
+
+K4=function(t){
+  a= c[1]*exp(-x1[2]*t)+c[2]*exp(-x2[2]*t)
+  return (a)
+}
+t=seq(0,1,length.out = 100)
+plot(t,K3(t), type='l',col='pink')
+lines(t,K4(t),col='purple', type='l')
+legend("topright",legend=c("real kernel","kernel with estimated parameters"),col=c("pink","purple"), lty=1:2, cex=0.8)
+```
+
+###trcé du noyau avec les resultats d'optim pour c1 et c2
+```{r}
+K1=function(t){
+  a= c[1]*exp(-xi[1]*t)+c[2]*exp(-xi[2]*t)
+  return (a)
+}
+
+K2=function(t){
+  a= 0.21*exp(-xi[1]*t)+1.167*exp(-xi[2]*t)
+  return (a)
+}
+t=seq(0,1,length.out = 100)
+plot(t,K1(t), type='l',col='pink')
+lines(t,K2(t),col='purple', type='l')
+legend("topright",legend=c("real kernel","kernel with estimated parameters"),col=c("pink","purple"), lty=1:2, cex=0.8)
+```
